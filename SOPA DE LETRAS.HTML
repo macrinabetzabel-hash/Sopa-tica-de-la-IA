@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Sopa de Letras: Ética en la IA</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  body {
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #312e81 100%);
+    min-height: 100vh;
+    color: #e2e8f0;
+    padding: 12px;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+  }
+  .container {
+    width: 100%;
+    max-width: 900px;
+    background: rgba(15, 23, 42, 0.7);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(148, 163, 184, 0.2);
+    border-radius: 16px;
+    padding: 20px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+  }
+  header {
+    text-align: center;
+    margin-bottom: 16px;
+  }
+  h1 {
+    font-size: clamp(1.2rem, 4vw, 1.8rem);
+    background: linear-gradient(90deg, #60a5fa, #a78bfa, #f472b6);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin-bottom: 4px;
+  }
+  .subtitle {
+    font-size: 0.85rem;
+    color: #94a3b8;
+  }
+  .stats {
+    display: flex;
+    justify-content: space-around;
+    gap: 10px;
+    margin: 14px 0;
+    flex-wrap: wrap;
+  }
+  .stat {
+    background: rgba(30, 41, 59, 0.8);
+    border: 1px solid rgba(148, 163, 184, 0.15);
+    border-radius: 10px;
+    padding: 10px 16px;
+    text-align: center;
+    flex: 1;
+    min-width: 100px;
+  }
+  .stat-label {
+    font-size: 0.7rem;
+    color: #94a3b8;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+  .stat-value {
+    font-size: 1.4rem;
+    font-weight: bold;
+    color: #60a5fa;
+    margin-top: 2px;
+  }
+  .stat-value.warning { color: #fbbf24; }
+  .stat-value.danger { color: #f87171; animation: pulse 1s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.5} }
+  .main {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+  @media (min-width: 768px) {
+    .main { grid-template-columns: 2fr 1fr; }
+  }
+  .grid-wrapper {
+    background: rgba(15, 23, 42, 0.9);
+    border-radius: 12px;
+    padding: 10px;
+    overflow: auto;
+    touch-action: none;
+  }
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(15, 1fr);
+    gap: 2px;
+    user-select: none;
+    min-width: 300px;
+  }
+  .cell {
+    aspect-ratio: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(30, 41, 59, 0.6);
+    border-radius: 4px;
+    font-weight: 600;
+    font-size: clamp(0.7rem, 2.2vw, 1rem);
+    color: #cbd5e1;
+    cursor: pointer;
+    transition: background 0.15s, transform 0.1s;
+    position: relative;
+  }
+  .cell.selecting {
+    background: rgba(96, 165, 250, 0.5);
+    color: #fff;
+    transform: scale(1.05);
+  }
+  .cell.found {
+    background: linear-gradient(135deg, #10b981, #059669);
+    color: #fff;
+    box-shadow: 0 0 8px rgba(16, 185, 129, 0.5);
+  }
+  .cell.found.c1 { background: linear-gradient(135deg, #3b82f6, #1d4ed8); }
+  .cell.found.c2 { background: linear-gradient(135deg, #a855f7, #7e22ce); }
+  .cell.found.c3 { background: linear-gradient(135deg, #ec4899, #be185d); }
+  .cell.found.c4 { background: linear-gradient(135deg, #f59e0b, #d97706); }
+  .cell.found.c5 { background: linear-gradient(135deg, #14b8a6, #0f766e); }
+  .cell.found.c6 { background: linear-gradient(135deg, #ef4444, #b91c1c); }
+  .cell.found.c7 { background: linear-gradient(135deg, #8b5cf6, #6d28d9); }
+  .cell.found.c8 { background: linear-gradient(135deg, #06b6d4, #0e7490); }
+  .cell.found.c9 { background: linear-gradient(135deg, #84cc16, #4d7c0f); }
+  .words-panel {
+    background: rgba(15, 23, 42, 0.9);
+    border-radius: 12px;
+    padding: 14px;
+  }
+  .words-panel h3 {
+    font-size: 0.95rem;
+    color: #a78bfa;
+    margin-bottom: 10px;
+    text-align: center;
+  }
+  .word-list {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+  }
+  @media (max-width: 400px) { .word-list { grid-template-columns: 1fr; } }
+  .word-item {
+    background: rgba(30, 41, 59, 0.6);
+    padding: 8px 10px;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    text-align: center;
+    border-left: 3px solid #60a5fa;
+    transition: all 0.3s;
+  }
+  .word-item.found {
+    background: rgba(16, 185, 129, 0.2);
+    border-left-color: #10b981;
+    text-decoration: line-through;
+    color: #6ee7b7;
+  }
+  .controls {
+    display: flex;
+    gap: 10px;
+    margin-top: 14px;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+  button {
+    background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s;
+  }
+  button:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(139, 92, 246, 0.4); }
+  button.secondary { background: linear-gradient(135deg, #475569, #334155); }
+  .modal {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.8);
+    z-index: 100;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+  .modal.show { display: flex; }
+  .modal-content {
+    background: linear-gradient(135deg, #1e293b, #0f172a);
+    border: 1px solid rgba(148, 163, 184, 0.3);
+    border-radius: 16px;
+    padding: 30px;
+    text-align: center;
+    max-width: 400px;
+    width: 100%;
+    animation: pop 0.4s;
+  }
+  @keyframes pop { from{transform:scale(0.7);opacity:0} to{transform:scale(1);opacity:1} }
+  .modal-content h2 {
+    font-size: 1.6rem;
+    margin-bottom: 10px;
+    background: linear-gradient(90deg, #60a5fa, #a78bfa);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  .modal-content p { color: #cbd5e1; margin-bottom: 20px; }
+  .emoji { font-size: 3rem; margin-bottom: 10px; }
+  .instructions {
+    font-size: 0.75rem;
+    color: #64748b;
+    text-align: center;
+    margin-top: 10px;
+    font-style: italic;
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <h1>🤖 Sopa de Letras: Ética en la IA</h1>
+    <p class="subtitle">Encuentra los 10 conceptos fundamentales</p>
+  </header>
+
+  <div class="stats">
+    <div class="stat">
+      <div class="stat-label">Tiempo</div>
+      <div class="stat-value" id="timer">05:00</div>
+    </div>
+    <div class="stat">
+      <div class="stat-label">Encontradas</div>
+      <div class="stat-value" id="found-count">0/10</div>
+    </div>
+    <div class="stat">
+      <div class="stat-label">Nivel</div>
+      <div class="stat-value" style="font-size:1rem;">Intermedio</div>
+    </div>
+  </div>
+
+  <div class="main">
+    <div class="grid-wrapper">
+      <div class="grid" id="grid"></div>
+    </div>
+    <div class="words-panel">
+      <h3>📋 Palabras a encontrar</h3>
+      <div class="word-list" id="word-list"></div>
+    </div>
+  </div>
+
+  <div class="controls">
+    <button onclick="restartGame()">🔄 Reiniciar</button>
+    <button class="secondary" onclick="showHint()">💡 Pista</button>
+  </div>
+  <p class="instructions">Arrastra sobre las letras para seleccionar palabras (horizontal, vertical o diagonal)</p>
+</div>
+
+<div class="modal" id="modal">
+  <div class="modal-content">
+    <div class="emoji" id="modal-emoji">🎉</div>
+    <h2 id="modal-title">¡Felicidades!</h2>
+    <p id="modal-text">Has encontrado todas las palabras</p>
+    <button onclick="closeModal()">Jugar de nuevo</button>
+  </div>
+</div>
+
+<script>
+const WORDS = ['TRANSPARENCIA','PRIVACIDAD','JUSTICIA','RESPONSABILIDAD','SESGO','AUTONOMIA','CONSENTIMIENTO','EQUIDAD','DIGNIDAD','HONESTIDAD'];
+const SIZE = 15;
+const DIRECTIONS = [[1,0],[-1,0],[0,1],[0,-1],[1,1],[-1,-1],[1,-1],[-1,1]];
+
+let grid = [];
+let wordPositions = {};
+let foundWords = new Set();
+let isSelecting = false;
+let startCell = null;
+let currentSelection = [];
+let timer = 300;
+let timerInterval = null;
+let gameOver = false;
+let colorIndex = 0;
+
+function createEmptyGrid() {
+  return Array.from({length: SIZE}, () => Array(SIZE).fill(''));
+}
+
+function canPlace(word, row, col, dr, dc) {
+  for (let i = 0; i < word.length; i++) {
+    const r = row + i*dr, c = col + i*dc;
+    if (r < 0 || r >= SIZE || c < 0 || c >= SIZE) return false;
+    if (grid[r][c] !== '' && grid[r][c] !== word[i]) return false;
+  }
+  return true;
+}
+
+function placeWord(word) {
+  for (let attempt = 0; attempt < 200; attempt++) {
+    const dir = DIRECTIONS[Math.floor(Math.random()*DIRECTIONS.length)];
+    const row = Math.floor(Math.random()*SIZE);
+    const col = Math.floor(Math.random()*SIZE);
+    if (canPlace(word, row, col, dir[0], dir[1])) {
+      const positions = [];
+      for (let i = 0; i < word.length; i++) {
+        const r = row + i*dir[0], c = col + i*dir[1];
+        grid[r][c] = word[i];
+        positions.push([r,c]);
+      }
+      return positions;
+    }
+  }
+  return null;
+}
+
+function fillGrid() {
+  const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+  for (let r = 0; r < SIZE; r++) {
+    for (let c = 0; c < SIZE; c++) {
+      if (grid[r][c] === '') grid[r][c] = letters[Math.floor(Math.random()*letters.length)];
+    }
+  }
+}
+
+function initGame() {
+  grid = createEmptyGrid();
+  wordPositions = {};
+  foundWords.clear();
+  colorIndex = 0;
+  
+  const shuffled = [...WORDS].sort(() => Math.random() - 0.5);
+  for (const word of shuffled) {
+    const pos = placeWord(word);
+    if (pos) wordPositions[word] = pos;
+  }
+  fillGrid();
+  renderGrid();
+  renderWordList();
+  startTimer();
+}
+
+function renderGrid() {
+  const gridEl = document.getElementById('grid');
+  gridEl.innerHTML = '';
+  for (let r = 0; r < SIZE; r++) {
+    for (let c = 0; c < SIZE; c++) {
+      const cell = document.createElement('div');
+      cell.className = 'cell';
+      cell.textContent = grid[r][c];
+      cell.dataset.row = r;
+      cell.dataset.col = c;
+      cell.addEventListener('mousedown', onCellDown);
+      cell.addEventListener('mouseenter', onCellEnter);
+      cell.addEventListener('touchstart', onTouchStart, {passive:false});
+      cell.addEventListener('touchmove', onTouchMove, {passive:false});
+      gridEl.appendChild(cell);
+    }
+  }
+  document.addEventListener('mouseup', onSelectionEnd);
+  document.addEventListener('touchend', onSelectionEnd);
+}
+
+function renderWordList() {
+  const list = document.getElementById('word-list');
+  list.innerHTML = '';
+  WORDS.forEach(w => {
+    const item = document.createElement('div');
+    item.className = 'word-item';
+    item.id = 'word-' + w;
+    item.textContent = w;
+    if (foundWords.has(w)) item.classList.add('found');
+    list.appendChild(item);
+  });
+}
+
+function getCellAt(x, y) {
+  const el = document.elementFromPoint(x, y);
+  if (el && el.classList.contains('cell')) return el;
+  return null;
+}
+
+function onCellDown(e) {
+  if (gameOver) return;
+  e.preventDefault();
+  isSelecting = true;
+  startCell = e.currentTarget;
+  currentSelection = [startCell];
+  updateSelectionVisual();
+}
+
+function onCellEnter(e) {
+  if (!isSelecting || gameOver) return;
+  const cell = e.currentTarget;
+  const sr = +startCell.dataset.row, sc = +startCell.dataset.col;
+  const cr = +cell.dataset.row, cc = +cell.dataset.col;
+  const dr = cr - sr, dc = cc - sc;
+  if (dr === 0 && dc === 0) {
+    currentSelection = [cell];
+  } else if (dr === 0 || dc === 0 || Math.abs(dr) === Math.abs(dc)) {
+    const steps = Math.max(Math.abs(dr), Math.abs(dc));
+    const stepR = dr === 0 ? 0 : dr/Math.abs(dr);
+    const stepC = dc === 0 ? 0 : dc/Math.abs(dc);
+    currentSelection = [];
+    for (let i = 0; i <= steps; i++) {
+      const r = sr + i*stepR, c = sc + i*stepC;
+      const el = document.querySelector(`.cell[data-row="${r}"][data-col="${c}"]`);
+      if (el) currentSelection.push(el);
+    }
+  }
+  updateSelectionVisual();
+}
+
+function onTouchStart(e) {
+  e.preventDefault();
+  if (gameOver) return;
+  const touch = e.touches[0];
+  const cell = getCellAt(touch.clientX, touch.clientY);
+  if (cell) {
+    isSelecting = true;
+    startCell = cell;
+    currentSelection = [cell];
+    updateSelectionVisual();
+  }
+}
+
+function onTouchMove(e) {
+  e.preventDefault();
+  if (!isSelecting) return;
+  const touch = e.touches[0];
+  const cell = getCellAt(touch.clientX, touch.clientY);
+  if (cell) {
+    const fakeEvent = { currentTarget: cell };
+    onCellEnter(fakeEvent);
+  }
+}
+
+function updateSelectionVisual() {
+  document.querySelectorAll('.cell.selecting').forEach(c => c.classList.remove('selecting'));
+  currentSelection.forEach(c => c.classList.add('selecting'));
+}
+
+function onSelectionEnd() {
+  if (!isSelecting) return;
+  isSelecting = false;
+  const selectedText = currentSelection.map(c => c.textContent).join('');
+  const reversed = selectedText.split('').reverse().join('');
+  let matchedWord = null;
+  if (WORDS.includes(selectedText) && !foundWords.has(selectedText)) matchedWord = selectedText;
+  else if (WORDS.includes(reversed) && !foundWords.has(reversed)) matchedWord = reversed;
+  
+  if (matchedWord) {
+    foundWords.add(matchedWord);
+    currentSelection.forEach(c => {
+      c.classList.remove('selecting');
+      c.classList.add('found', 'c' + colorIndex);
+    });
+    document.getElementById('word-' + matchedWord).classList.add('found');
+    colorIndex = (colorIndex + 1) % 10;
+    document.getElementById('found-count').textContent = foundWords.size + '/10';
+    if (foundWords.size === WORDS.length) winGame();
+  } else {
+    currentSelection.forEach(c => c.classList.remove('selecting'));
+  }
+  currentSelection = [];
+}
+
+function startTimer() {
+  if (timerInterval) clearInterval(timerInterval);
+  timer = 300;
+  updateTimerDisplay();
+  timerInterval = setInterval(() => {
+    if (gameOver) return;
+    timer--;
+    updateTimerDisplay();
+    if (timer <= 0) {
+      clearInterval(timerInterval);
+      loseGame();
+    }
+  }, 1000);
+}
+
+function updateTimerDisplay() {
+  const m = Math.floor(timer/60).toString().padStart(2,'0');
+  const s = (timer%60).toString().padStart(2,'0');
+  const el = document.getElementById('timer');
+  el.textContent = m + ':' + s;
+  el.classList.remove('warning','danger');
+  if (timer <= 30) el.classList.add('danger');
+  else if (timer <= 60) el.classList.add('warning');
+}
+
+function winGame() {
+  gameOver = true;
+  clearInterval(timerInterval);
+  document.getElementById('modal-emoji').textContent = '🎉';
+  document.getElementById('modal-title').textContent = '¡Has ganado!';
+  const used = 300 - timer;
+  const m = Math.floor(used/60), s = used%60;
+  document.getElementById('modal-text').textContent = `Encontraste las 10 palabras en ${m}m ${s}s. ¡La ética en la IA es fundamental!`;
+  document.getElementById('modal').classList.add('show');
+}
+
+function loseGame() {
+  gameOver = true;
+  document.getElementById('modal-emoji').textContent = '⏰';
+  document.getElementById('modal-title').textContent = '¡Se acabó el tiempo!';
+  document.getElementById('modal-text').textContent = `Encontraste ${foundWords.size} de 10 palabras. ¡Inténtalo de nuevo!`;
+  document.getElementById('modal').classList.add('show');
+}
+
+function closeModal() {
+  document.getElementById('modal').classList.remove('show');
+  restartGame();
+}
+
+function restartGame() {
+  gameOver = false;
+  document.getElementById('modal').classList.remove('show');
+  initGame();
+}
+
+function showHint() {
+  if (gameOver) return;
+  const remaining = WORDS.filter(w => !foundWords.has(w));
+  if (remaining.length === 0) return;
+  const word = remaining[Math.floor(Math.random()*remaining.length)];
+  const pos = wordPositions[word];
+  if (pos && pos.length > 0) {
+    const [r,c] = pos[0];
+    const cell = document.querySelector(`.cell[data-row="${r}"][data-col="${c}"]`);
+    if (cell) {
+      cell.style.background = 'rgba(251, 191, 36, 0.7)';
+      setTimeout(() => { cell.style.background = ''; }, 1500);
+    }
+  }
+}
+
+initGame();
+</script>
+</body>
+</html>
